@@ -19,8 +19,9 @@ lalu jual otomatis saat take-profit / stop-loss / batas waktu pegang.
 ## Penting, baca dulu sebelum deploy
 
 1. **Vercel itu serverless.** Bot jalan lewat cron, bukan proses 24/7.
-   Paket **Hobby** Vercel hanya boleh cron 1x sehari; cron tiap 5 menit
-   (seperti di `vercel.json`) butuh paket **Pro**. Di Hobby, bot ini lebih
+   Paket **Hobby** Vercel hanya boleh cron 1x sehari, jadi `vercel.json`
+   sekarang memakai jadwal harian (`0 0 * * *`, sekali sehari jam 00:00 UTC);
+   cron tiap 5 menit butuh paket **Pro**. Di Hobby, bot ini lebih
    cocok sebagai scanner harian + eksekusi manual dari tombol di dashboard.
    Kalau mau reaksi detik-per-detik (sniper), butuh VPS, bukan Vercel.
 2. **Mode kertas dulu.** Default `DRY_RUN=true`: bot hanya mencatat
@@ -115,6 +116,29 @@ vercel --prod
 | `ALLOWED_EMAIL` | bila login Google | Email Google yang boleh login dashboard. |
 | `SESSION_SECRET` | bila login Google | String acak panjang untuk session. |
 
+## Telegram (remote control + notifikasi)
+
+Bot bisa dikendalikan dari Telegram dan mengirim notifikasi tiap beli/jual.
+Trading tetap jalan di server (cron Vercel); Telegram hanya remote-nya.
+Gratis — BotFather tidak memungut biaya, webhook jalan di Vercel yang sama.
+
+Setup (sekali saja):
+1. Di Telegram, chat @BotFather → `/newbot` → ikuti langkahnya → salin
+   token yang diberikan. **Jangan bagikan token itu ke siapa pun,
+   termasuk di chat.**
+2. Di Vercel (Settings → Environment Variables), isi `TELEGRAM_BOT_TOKEN`
+   dengan token itu, lalu redeploy.
+3. Buka `https://<domain-kamu>/api/telegram?setup=1` di browser — webhook
+   terdaftar ke Telegram.
+4. Kirim `/start` ke bot di Telegram. Bot membalas dengan chat ID kamu.
+5. Isi `TELEGRAM_CHAT_ID` dengan angka itu di Vercel, redeploy. Selesai.
+
+Perintah: `/start` `/status` `/posisi` `/scan` `/stop` `/jalan`
+`/cek <alamat> [chain]` (chain: bsc/solana/base, default bsc).
+`/stop` menjeda auto-trade (cron tetap jalan tapi tidak beli/jual);
+`/jalan` menyalakannya lagi. Hanya chat yang chat ID-nya terdaftar yang
+dilayani; chat lain diabaikan diam-diam.
+
 ## Cara pakai
 
 - Buka URL hasil deploy: dashboard menampilkan mode (PAPER/LIVE), posisi
@@ -173,7 +197,6 @@ franky-bot/
 ├── scripts/
 │   └── scan-local.js    # tes satu siklus dari terminal
 ├── package.json
-├── vercel.json          # cron tiap 5 menit (butuh Pro)
+├── vercel.json          # cron 1x sehari (paket Hobby)
 └── .env.example
 ```
- 
