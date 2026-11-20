@@ -12,106 +12,43 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🤖</text></svg>" />
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <style>
-  * { box-sizing: border-box; }
-  body { font-family: system-ui, -apple-system, sans-serif; background: #fff; color: #111827; margin: 0 auto; max-width: 860px; padding: 0 16px 32px; }
-  /* header ala dusk.bot */
-  .topbar { display: flex; align-items: center; gap: 10px; padding: 18px 0 14px; }
-  .topbar .logoWrap { width: 40px; height: 40px; border-radius: 10px; font-size: 22px; }
-  .topbar .wordmark { font-size: 22px; font-weight: 800; letter-spacing: -0.02em; }
-  .topbar a { margin-left: auto; color: #111827; font-weight: 600; text-decoration: none; font-size: 15px; }
-  /* hero biru + kartu putih menumpuk */
-  .hero { background: linear-gradient(180deg, #2ea3f2, #1f8ef0); border-radius: 28px; padding: 24px 16px 90px; text-align: center; overflow: hidden; }
-  .hero svg { max-width: 340px; width: 100%; height: auto; display: block; margin: 0 auto; }
-  .heroCard { background: #fff; border-radius: 24px; box-shadow: 0 12px 32px rgba(0,0,0,.12); padding: 28px 24px; margin: -70px 8px 0; position: relative; }
-  .heroCard h1 { font-size: clamp(34px, 8vw, 46px); line-height: 1.08; letter-spacing: -0.03em; margin: 0 0 20px; font-weight: 800; }
-  .checklist { list-style: none; padding: 0; margin: 0 0 24px; text-align: left; }
-  .checklist li { display: flex; gap: 10px; align-items: flex-start; padding: 7px 0; font-size: 17px; color: #374151; }
-  .checklist li::before { content: "✓"; color: #16a34a; font-weight: 800; flex-shrink: 0; }
-  .ctaRow { display: flex; flex-direction: column; gap: 12px; }
-  .ctaRow button { width: 100%; }
-  /* dashboard */
-  h1 { margin: 0 0 4px; } p.sub { color: #6b7280; margin: 0 0 20px; }
+  body { font-family: system-ui, sans-serif; background: #0e1116; color: #e6e9ef; margin: 0; padding: 24px; }
+  body::before { content: ""; position: fixed; inset: 0; z-index: -1; background: url('/background.png') center top / cover no-repeat; opacity: .3; }
+  h1 { margin: 0 0 4px; } p.sub { color: #9aa3b2; margin: 0 0 20px; }
   .badge { display: inline-block; padding: 4px 10px; border-radius: 999px; font-weight: 700; font-size: 13px; }
   .paper { background: #f5c542; color: #111; } .live { background: #e5484d; color: #fff; }
-  .card { background: #fff; border: 1px solid #e8e8e8; border-radius: 20px; padding: 20px; margin-bottom: 16px; box-shadow: 0 2px 10px rgba(0,0,0,.04); }
-  .card h3 { margin-top: 0; }
-  .logoWrap { position: relative; width: 64px; height: 64px; border-radius: 16px; background: #f0f0f0; display: flex; align-items: center; justify-content: center; font-size: 36px; overflow: hidden; flex-shrink: 0; border: 1px solid #e8e8e8; }
+  .card { background: #171b22; border: 1px solid #262c38; border-radius: 12px; padding: 16px; margin-bottom: 16px; }
+  .logoWrap { position: relative; width: 64px; height: 64px; border-radius: 16px; background: #262c38; display: flex; align-items: center; justify-content: center; font-size: 36px; overflow: hidden; flex-shrink: 0; border: 1px solid #262c38; }
   .logoWrap img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
   table { width: 100%; border-collapse: collapse; font-size: 14px; }
-  th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid #f0f0f0; }
-  th { color: #6b7280; } .num { text-align: right; }
-  .pos { color: #16a34a; } .neg { color: #e5484d; }
-  button { background: #111827; color: #fff; border: 0; border-radius: 999px; padding: 14px 26px; font-weight: 700; font-size: 16px; cursor: pointer; }
+  th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid #262c38; }
+  th { color: #9aa3b2; } .num { text-align: right; }
+  .pos { color: #4cc38a; } .neg { color: #e5484d; }
+  button { background: #2f6feb; color: #fff; border: 0; border-radius: 8px; padding: 10px 16px; font-weight: 700; cursor: pointer; }
   button:disabled { opacity: .5; cursor: wait; }
-  button.secondary { background: #f0f0f0; color: #111827; }
+  button.secondary { background: #262c38; }
   button.wallet { background: #7c3aed; }
-  input { background: #fff; color: #111827; border: 1px solid #e5e7eb; border-radius: 999px; padding: 12px 16px; font-size: 15px; }
-  pre { background: #f7f7f7; border: 1px solid #eee; border-radius: 12px; padding: 12px; overflow: auto; font-size: 12px; }
+  input { background: #0e1116; color: #e6e9ef; border: 1px solid #262c38; border-radius: 8px; padding: 9px 10px; }
+  pre { background: #0e1116; border: 1px solid #262c38; border-radius: 8px; padding: 12px; overflow: auto; font-size: 12px; }
   ul.log { list-style: none; padding: 0; margin: 0; font-size: 13px; }
-  ul.log li { padding: 5px 0; border-bottom: 1px solid #f0f0f0; color: #374151; }
-  ul.log li span { color: #9ca3af; margin-right: 8px; }
+  ul.log li { padding: 5px 0; border-bottom: 1px solid #1e232d; color: #c6cdd8; }
+  ul.log li span { color: #6b7484; margin-right: 8px; }
   .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-  .muted { color: #6b7280; font-size: 13px; }
+  .muted { color: #9aa3b2; font-size: 13px; }
   .addr { font-family: monospace; font-size: 13px; word-break: break-all; }
-  .walletbox { border: 1px solid #e8e8e8; border-radius: 16px; padding: 14px; margin-top: 10px; }
+  .walletbox { border: 1px solid #262c38; border-radius: 8px; padding: 12px; margin-top: 10px; }
 </style>
 </head>
 <body>
-<header class="topbar">
+<div style="margin-bottom:16px">
+  <iframe src="/robot.html" style="width:100%;height:520px;border:0;border-radius:16px;" title="Robot Franky"></iframe>
+</div>
+<div class="row" style="align-items:center;gap:14px">
   <div class="logoWrap"><span>🤖</span><img src="/logo.png" alt="Logo Franky Bot" onerror="this.remove()" /></div>
-  <span class="wordmark">franky bot</span>
-  <a href="/check.html">🔍 Cek Koin</a>
-</header>
-
-<div class="hero">
-  <svg viewBox="0 0 360 200" shape-rendering="crispEdges" aria-hidden="true">
-    <rect x="272" y="14" width="48" height="10" fill="#fff" />
-    <rect x="282" y="6" width="34" height="10" fill="#fff" />
-    <rect x="292" y="24" width="30" height="8" fill="#fde68a" />
-    <rect x="126" y="36" width="118" height="88" fill="#111827" />
-    <rect x="130" y="40" width="110" height="80" fill="#fff7e0" />
-    <rect x="138" y="48" width="94" height="56" fill="#7cc4ff" />
-    <rect x="138" y="48" width="94" height="10" fill="#a5d8ff" />
-    <polygon points="176,62 176,84 183,77 188,88 194,85 189,75 198,75" fill="#fff" />
-    <rect x="176" y="120" width="18" height="14" fill="#fff7e0" />
-    <rect x="158" y="134" width="54" height="8" fill="#fff7e0" />
-    <rect x="100" y="152" width="170" height="26" rx="3" fill="#fff7e0" />
-    <rect x="108" y="158" width="12" height="7" fill="#f472b6" />
-    <rect x="124" y="158" width="12" height="7" fill="#facc15" />
-    <rect x="140" y="158" width="12" height="7" fill="#4ade80" />
-    <rect x="156" y="158" width="12" height="7" fill="#60a5fa" />
-    <rect x="172" y="158" width="12" height="7" fill="#c084fc" />
-    <rect x="188" y="158" width="12" height="7" fill="#f472b6" />
-    <rect x="204" y="158" width="12" height="7" fill="#facc15" />
-    <rect x="220" y="158" width="12" height="7" fill="#4ade80" />
-    <rect x="236" y="158" width="12" height="7" fill="#60a5fa" />
-    <rect x="108" y="168" width="12" height="7" fill="#c084fc" />
-    <rect x="124" y="168" width="12" height="7" fill="#60a5fa" />
-    <rect x="140" y="168" width="60" height="7" fill="#4ade80" />
-    <rect x="204" y="168" width="12" height="7" fill="#f472b6" />
-    <rect x="220" y="168" width="12" height="7" fill="#facc15" />
-    <rect x="236" y="168" width="12" height="7" fill="#c084fc" />
-    <rect x="40" y="188" width="10" height="10" fill="#ffffff55" />
-    <rect x="310" y="186" width="10" height="10" fill="#ffffff55" />
-  </svg>
-</div>
-<div class="heroCard">
-  <h1>trade meme coins while you sleep.</h1>
-  <ul class="checklist">
-    <li>always scanning, even with your phone off</li>
-    <li>buys and sells on time, day and night</li>
-    <li>checks every coin before buying</li>
-    <li>paper mode first — no real money at risk</li>
-  </ul>
-  <div class="ctaRow">
-    <button onclick="document.getElementById('scanBtn').scrollIntoView({behavior:'smooth',block:'center'});document.getElementById('scanBtn').click()">Scan sekarang</button>
-    <button class="secondary" onclick="location.href='/check.html'">Cek koin dulu</button>
+  <div>
+    <h1>Franky Bot 🤖</h1>
+    <p class="sub">Bot trading meme coin — Solana · BNB · Base · HyperEVM · <a href="/check.html">🔍 Cek Koin</a></p>
   </div>
-  <p class="muted" style="margin:14px 0 0;text-align:center">Solana · BNB Chain · Base · HyperEVM</p>
-</div>
-
-<div class="card" style="margin-top:16px;padding:8px">
-  <iframe src="/robot.html" style="width:100%;height:520px;border:0;border-radius:16px;display:block" title="Robot Franky"></iframe>
 </div>
 
 <!-- Panel login Google: hanya tampil bila dashboard terkunci -->
