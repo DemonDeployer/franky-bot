@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Franky — Buat Wallet Bot</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: system-ui, -apple-system, sans-serif; background: #0b0f0a; color: #e8f5d0; padding: 16px; }
+  .wrap { max-width: 560px; margin: 0 auto; }
+  h1 { font-size: 22px; margin: 8px 0 4px; color: #ccff00; }
+  p { line-height: 1.5; }
+  .warn { background: #3a2b00; border: 1px solid #b58900; border-radius: 10px; padding: 12px; font-size: 14px; }
+  .warn b { color: #ffd60a; }
+  .safe { background: #0f2b12; border: 1px solid #2e7d32; border-radius: 10px; padding: 12px; font-size: 14px; }
+  button.big { width: 100%; padding: 14px; font-size: 17px; font-weight: 700; background: #ccff00; color: #111; border: 0; border-radius: 12px; margin: 14px 0; cursor: pointer; }
+  button.big:disabled { opacity: .5; }
+  .card { background: #141a10; border: 1px solid #2c3a22; border-radius: 12px; padding: 14px; margin: 12px 0; }
+  .card h2 { margin: 0 0 8px; font-size: 17px; color: #ccff00; }
+  .row { margin: 10px 0; }
+  .lbl { font-size: 12px; color: #9db38a; text-transform: uppercase; letter-spacing: .04em; }
+  .val { word-break: break-all; font-family: ui-monospace, monospace; font-size: 13px; background: #0b0f0a; border: 1px solid #2c3a22; border-radius: 8px; padding: 8px; margin-top: 4px; }
+  .copy { margin-top: 6px; padding: 8px 12px; font-size: 14px; background: #243020; color: #e8f5d0; border: 1px solid #3d5233; border-radius: 8px; cursor: pointer; }
+  .env { color: #ffd60a; font-family: ui-monospace, monospace; }
+  .fund { font-size: 14px; }
+  .fund li { margin: 4px 0; }
+  .hidden { display: none; }
+  #status { font-size: 14px; color: #ffb4a2; min-height: 20px; }
+  .ok { color: #7ee081 !important; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Buat Wallet Bot Franky</h1>
+  <p>Membuat 2 wallet khusus bot: 1 Solana + 1 EVM (dipakai bareng untuk BNB, Base, dan HyperEVM).</p>
+
+  <div class="safe">
+    <b>Privasi:</b> wallet dibuat <b>di HP kamu</b>, di halaman ini saja. Private key <b>tidak pernah dikirim</b> ke server mana pun — tidak ke Vercel, tidak ke Harbor, tidak ke siapa pun.
+  </div>
+
+  <div class="warn" style="margin-top:10px">
+    <b>Simpan baik-baik.</b> Siapa pun yang memegang private key bisa mengambil semua dana di wallet itu.
+    Simpan di password manager / catatan aman. Kalau key hilang, dana tidak bisa diambil kembali.
+  </div>
+
+  <button class="big" id="genBtn">Buat 2 wallet baru</button>
+  <div id="status"></div>
+
+  <div id="out" class="hidden">
+    <div class="card">
+      <h2>Wallet Solana</h2>
+      <div class="row"><div class="lbl">Alamat (kirim SOL ke sini)</div><div class="val" id="solAddr"></div><button class="copy" data-copy="solAddr">Salin alamat</button></div>
+      <div class="row"><div class="lbl">Private key (base58) — isi ke Vercel sebagai <span class="env">SOLANA_PRIVATE_KEY</span></div><div class="val" id="solKey"></div><button class="copy" data-copy="solKey">Salin private key</button></div>
+    </div>
+
+    <div class="card">
+      <h2>Wallet EVM (BNB + Base + HyperEVM)</h2>
+      <div class="row"><div class="lbl">Alamat (sama untuk semua chain EVM)</div><div class="val" id="evmAddr"></div><button class="copy" data-copy="evmAddr">Salin alamat</button></div>
+      <div class="row"><div class="lbl">Private key (0x…) — isi ke Vercel sebagai <span class="env">EVM_PRIVATE_KEY</span></div><div class="val" id="evmKey"></div><button class="copy" data-copy="evmKey">Salin private key</button></div>
+    </div>
+
+    <div class="card">
+      <h2>Setelah wallet dibuat</h2>
+      <ol class="fund">
+        <li>Simpan kedua private key di tempat aman.</li>
+        <li>Di dashboard Vercel → franky-bot → Settings → Environment Variables, isi <span class="env">SOLANA_PRIVATE_KEY</span> dan <span class="env">EVM_PRIVATE_KEY</span> (tempel nilai dari atas, jangan kirim lewat chat).</li>
+        <li>Danai kecil dulu:
+          <ul>
+            <li>SOL → alamat Solana</li>
+            <li>BNB → alamat EVM (jaringan BSC)</li>
+            <li>ETH → alamat EVM (jaringan Base)</li>
+            <li>HYPE → alamat EVM (jaringan HyperEVM)</li>
+          </ul>
+        </li>
+        <li>Terakhir, ubah <span class="env">DRY_RUN</span> jadi <span class="env">false</span> di Vercel, lalu redeploy. Kabari Harbor alamat + jumlah dananya supaya dicek dulu saldonya.</li>
+      </ol>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@solana/web3.js@1.98.0/lib/index.iife.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/ethers@6.13.0/dist/ethers.umd.min.js"></script>
+<script>
+// Base58 (alfabet Bitcoin) — implementasi kecil supaya tidak butuh library tambahan.
+const B58 = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+function b58encode(bytes) {
+  let n = 0n;
+  for (const b of bytes) n = (n << 8n) | BigInt(b);
+  let out = '';
+  while (n > 0n) { out = B58[Number(n % 58n)] + out; n /= 58n; }
+  for (const b of bytes) { if (b === 0) out = '1' + out; else break; }
+  return out || '1';
+}
+
+const status = document.getElementById('status');
+const btn = document.getElementById('genBtn');
+
+document.querySelectorAll('.copy').forEach(b => {
+  b.addEventListener('click', async () => {
+    const el = document.getElementById(b.dataset.copy);
+    try { await navigator.clipboard.writeText(el.textContent); b.textContent = 'Disalin ✓'; }
+    catch (e) { b.textContent = 'Gagal menyalin — salin manual'; }
+    setTimeout(() => { b.textContent = 'Salin ' + (b.dataset.copy.endsWith('Addr') ? 'alamat' : 'private key'); }, 2000);
+  });
+});
+
+btn.addEventListener('click', () => {
+  status.className = '';
+  if (typeof solanaWeb3 === 'undefined' || typeof ethers === 'undefined') {
+    status.textContent = 'Library belum termuat (butuh internet). Coba muat ulang halaman, lalu tekan lagi.';
+    return;
+  }
+  if (!document.getElementById('out').classList.contains('hidden')) {
+    if (!confirm('Wallet yang tampil sekarang akan diganti. Pastikan private key yang lama sudah disimpan. Lanjut buat wallet baru?')) return;
+  }
+  // Solana: 64-byte secret key (32 seed + 32 pubkey), format base58 seperti export Phantom.
+  const kp = solanaWeb3.Keypair.generate();
+  const solSecret = b58encode(kp.secretKey);
+  // EVM: ethers Wallet acak (0x…).
+  const w = ethers.Wallet.createRandom();
+  document.getElementById('solAddr').textContent = kp.publicKey.toBase58();
+  document.getElementById('solKey').textContent = solSecret;
+  document.getElementById('evmAddr').textContent = w.address;
+  document.getElementById('evmKey').textContent = w.privateKey;
+  document.getElementById('out').classList.remove('hidden');
+  status.textContent = 'Wallet baru dibuat di HP kamu. Simpan private key-nya sebelum menutup halaman ini.';
+  status.className = 'ok';
+});
+</script>
+</body>
+</html>
