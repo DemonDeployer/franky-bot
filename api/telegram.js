@@ -75,7 +75,10 @@ const HELP = `🤖 Franky Bot — perintah:
 /scan — jalankan satu siklus scan sekarang
 /stop — jeda auto-trade (cron tetap jalan, tidak beli/jual)
 /jalan — nyalakan lagi auto-trade
-/cek <alamat> [chain] — cek koin (chain: bsc/solana/base, default bsc)`;
+/cek <alamat> [chain] — cek koin (chain: bsc/solana/base, default bsc)
+/screen — status screener token baru
+/screen on — nyalakan screener (alert token baru yang lolos kill-switch)
+/screen off — matikan screener`;
 
 async function statusText() {
   const state = await loadState();
@@ -83,8 +86,27 @@ async function statusText() {
   return (
     `🤖 Franky Bot — ${mode}\n` +
     `Auto-trade: ${state.paused ? 'DIJEDA ⏸️' : 'JALAN ▶️'}\n` +
+    `Screener token baru: ${state.screenEnabled === false ? 'MATI ⏸️ (/screen on untuk menyalakan)' : 'AKTIF ▶️ (alert hanya bila lolos kill-switch)'}\n` +
     `Posisi terbuka: ${state.positions.length}/${CONFIG.maxPositions}\n` +
     `Hari ini: PnL $${Number(state.daily.pnlUsd || 0).toFixed(2)} · beli ${state.daily.buys || 0}x`
+  );
+}
+
+async function screenText() {
+  const state = await loadState();
+  const enabled = state.screenEnabled !== false;
+  const evaluated = Object.keys(state.newTokenAlerts || {}).length;
+  const recent = (state.logs || [])
+    .filter((l) => String(l.msg || '').startsWith('ALERT BARU'))
+    .slice(0, 3)
+    .map((l) => `• ${l.msg}`);
+  return (
+    `🔍 Screener token baru: ${enabled ? 'AKTIF ▶️' : 'MATI ⏸️'}\n` +
+    `Chain: solana, bsc, base (HyperEVM belum didukung GoPlus — tidak dievaluasi)\n` +
+    `Token sudah dievaluasi (tercatat): ${evaluated}\n` +
+    `Alert hanya bila PASS kill-switch (pajak ≤10%, LP terkunci/dibakar, top-10 ≤25%, bukan honeypot).\n` +
+    (recent.length ? `Alert terakhir:\n${recent.join('\n')}` : 'Belum ada alert PASS yang tercatat.') +
+    `\nPerintah: /screen on · /screen off`
   );
 }
 
@@ -160,6 +182,22 @@ export default async function handler(req, res) {
       state.paused = false;
       await saveState(state);
       await reply(token, chatId, '▶️ Auto-trade JALAN lagi.');
+    } else if (cmd === '/screen') {
+      const arg = String(args[0] || '').toLowerCase();
+      if (arg === 'on' || arg === 'off') {
+        const state = await loadState();
+        state.screenEnabled = arg === 'on';
+        await saveState(state);
+        await reply(
+          token,
+          chatId,
+          arg === 'on'
+            ? '🔍 Screener token baru DINYALAKAN. Alert masuk bila ada token baru yang lolos kill-switch (PASS).'
+            : '🔍 Screener token baru DIMATIKAN. Tidak ada alert token baru sampai /screen on.',
+        );
+      } else {
+        await reply(token, chatId, await screenText());
+      }
     } else if (cmd === '/cek') {
       const address = args[0] || '';
       const chain = String(args[1] || 'bsc').toLowerCase();

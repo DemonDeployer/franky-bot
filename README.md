@@ -139,6 +139,46 @@ Perintah: `/start` `/status` `/posisi` `/scan` `/stop` `/jalan`
 `/jalan` menyalakannya lagi. Hanya chat yang chat ID-nya terdaftar yang
 dilayani; chat lain diabaikan diam-diam.
 
+## Screener token baru (alert Telegram, tanpa trading)
+
+Selain trading, Franky memindai pair baru dan mengirim alert Telegram bila
+ada token yang lolos **Kill-Switch Filter** (skill
+onchain-alpha-and-liquidity-hunter). Alert saja — tidak beli, tidak jual,
+tidak mengubah `DRY_RUN`. Lolos filter artinya struktur bersih, **bukan**
+rekomendasi beli.
+
+Cara kerja:
+- Endpoint `/api/screen` (cron 5 menit di `vercel.json`, plus jalan di
+  siklus harian `/api/scan`) mengambil pair terbaru dari GeckoTerminal
+  tiap chain, lalu mengevaluasi kill-switch: honeypot/rug, pajak beli/jual
+  > 10%, ada setter pajak di bytecode (setTax/dll.), 10 holder teratas
+  (di luar LP/burn) > 25%, LP tidak dibakar dan tidak dikunci, mintable,
+  blacklist, proxy + mintable, atau FDV > $1 jt dengan likuiditas < $10 rb.
+  Satu saja kena = REJECT, tidak di-alert. Data keamanan dari GoPlus
+  (EVM) / RugCheck (Solana); tanpa data keamanan, token tidak di-alert
+  (fail closed). Token tanpa pair DEX tidak bisa dinilai — tidak di-alert.
+- Chain yang dievaluasi: **Solana, BNB, Base**. HyperEVM **tidak**
+  dievaluasi untuk saat ini: GoPlus tidak mendukung chain itu, jadi
+  kill-switch tidak bisa PASS — dicatat sebagai unsupported-for-now,
+  bukan dipalsukan.
+- Dedup: tiap alamat yang sudah dievaluasi tercatat supaya tidak di-alert
+  dua kali. Durable bila `UPSTASH_REDIS_REST_URL` +
+  `UPSTASH_REDIS_REST_TOKEN` diisi (Upstash Redis gratis, lihat
+  `.env.example`); bila tidak diisi, fallback ke file state `/tmp`
+  (best-effort — bisa hilang saat Vercel recycle, token bisa di-alert ulang).
+- Perintah Telegram: `/screen` (status), `/screen on`, `/screen off`.
+  Default AKTIF setelah deploy. `/stop` hanya menjeda trading — screener
+  tetap jalan sampai `/screen off`.
+- Cron 5 menit butuh paket **Pro** Vercel (sama seperti catatan cron di
+  atas: Hobby hanya boleh cron 1x sehari). Di Hobby, screener tetap jalan
+  sekali sehari lewat cron `/api/scan`, plus bisa dijalankan manual dari
+  dashboard / perintah `/scan` (yang ini menjalankan siklus trading juga)
+  atau `GET /api/screen` (khusus screener).
+- Tes lokal: `npm run screen` — fetch pair asli, jalankan filter, cetak
+  hitungan (dilihat / dievaluasi / REJECT per aturan / PASS). Tanpa
+  `TELEGRAM_BOT_TOKEN`/`TELEGRAM_CHAT_ID` di env, tidak ada pesan yang
+  terkirim.
+
 ## Cara pakai
 
 - Buka URL hasil deploy: dashboard menampilkan mode (PAPER/LIVE), posisi
@@ -178,6 +218,7 @@ pernah menaruh seluruh dana di satu wallet bot.
 franky-bot/
 ├── api/
 │   ├── scan.js          # cron + tombol scan manual (satu siklus penuh)
+│   ├── screen.js        # cron screener token baru (alert-only, tanpa trading)
 │   ├── positions.js     # status bot untuk dashboard
 │   ├── auth.js          # tukar Google ID token jadi session bot
 │   └── config.js        # konfigurasi publik dashboard (client ID Google)
@@ -185,9 +226,11 @@ franky-bot/
 │   ├── config.js        # semua setting dari env vars
 │   ├── auth.js          # session HMAC + cek akses API
 │   ├── store.js         # simpan posisi/trade/log (file /tmp)
+│   ├── alertStore.js    # dedup alert screener (Upstash Redis / fallback /tmp)
+│   ├── screen.js        # siklus screener: pair baru → kill-switch → alert PASS
 │   ├── dexscreener.js   # harga token saat ini
 │   ├── geckoterminal.js # pool terbaru tiap chain (discovery)
-│   ├── security.js      # cek honeypot/pajak via GoPlus
+│   ├── security.js      # cek honeypot/pajak via GoPlus (+ setter pajak via bytecode)
 │   ├── strategy.js      # filter + skor pair
 │   ├── evm.js           # beli/jual BNB, Base, HyperEVM
 │   ├── solana.js        # beli/jual Solana via Jupiter
@@ -196,7 +239,8 @@ franky-bot/
 │   └── index.html       # dashboard
 ├── scripts/
 │   └── scan-local.js    # tes satu siklus dari terminal
+│   └── screen-local.js  # tes screener dari terminal (tanpa kirim Telegram)
 ├── package.json
-├── vercel.json          # cron 1x sehari (paket Hobby)
+├── vercel.json          # cron 1x sehari (paket Hobby) + screener 5 menit (butuh Pro)
 └── .env.example
 ```
