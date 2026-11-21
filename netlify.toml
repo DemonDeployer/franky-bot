@@ -1,0 +1,24 @@
+# Franky Bot — konfigurasi Netlify.
+# Deploy: hubungkan repo ini di Netlify (New site from Git), publish dir
+# "public", functions dir "netlify/functions" (otomatis dari file ini).
+# /api/* diteruskan ke satu Netlify Function (router) supaya dashboard
+# yang memanggil /api/config, /api/positions, dst. tetap jalan.
+# Siklus trading: Scheduled Functions (scan 00:00 UTC, screen 01:00 UTC,
+# sama seperti cron Vercel) memicu background function (limit 15 menit,
+# karena satu siklus bisa lebih dari 30 detik batas scheduled function).
+# Env vars yang wajib: DRY_RUN, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID,
+# CRON_SECRET. Kunci wallet (EVM_PRIVATE_KEY, SOLANA_PRIVATE_KEY) hanya
+# bila DRY_RUN=false. Lihat .env.example.
+
+[build]
+  publish = "public"
+  functions = "netlify/functions"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/api/:splat"
+  status = 200
+  force = true

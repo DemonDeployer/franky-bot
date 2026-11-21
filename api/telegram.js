@@ -137,7 +137,7 @@ export default async function handler(req, res) {
     await reply(
       token,
       chatId,
-      `Halo! Chat ID kamu: ${chatId}\n\nIsi TELEGRAM_CHAT_ID=${chatId} di Environment Variables Vercel, lalu redeploy. Setelah itu kirim /start lagi.`,
+      `Halo! Chat ID kamu: ${chatId}\n\nIsi TELEGRAM_CHAT_ID=${chatId} di Environment Variables (dashboard hosting), lalu redeploy. Setelah itu kirim /start lagi.`,
     );
     return res.status(200).json({ ok: true });
   }

@@ -250,8 +250,12 @@ franky-bot/
 Vercel Hobby hanya boleh cron 1x sehari — cron `*/5` di `vercel.json` sempat
 membuat SEMUA deployment gagal (21 Nov 2026, diperbaiki jadi 1x sehari).
 Altare Always Free tidak punya batas itu: aplikasi TIDAK tidur, dan cron
-tiap 5 menit gratis. Sejak 21 Nov 2026, Altare adalah rumah utama Franky;
-Vercel tinggal cadangan.
+tiap 5 menit gratis. Rencana awal 21 Nov 2026: Altare jadi rumah utama
+Franky, Vercel tinggal cadangan — TAPI deploy Altare GAGAL di semua region
+hari itu (Mumbai disk penuh, lalu Karlskrona/Brisbane/Ulaanbaatar/Singapura
+tidak ada alokasi / node tidak terjangkau) dan aplikasi Mumbai sudah dihapus,
+jadi saat ini TIDAK ADA aplikasi Franky di Altare. Coba lagi nanti bila
+Altare sudah pulih.
 
 ### Cara pasang (sekali saja)
 
@@ -286,3 +290,55 @@ Vercel tinggal cadangan.
 - Catatan: posisi kertas bisa hilang saat redeploy (state file ikut build baru).
   Untuk dedup alert yang tahan redeploy, isi `UPSTASH_REDIS_REST_URL/TOKEN`
   (gratis, lihat `.env.example`).
+
+## Jalankan di Netlify (cadangan Vercel/Altare, cron 1x sehari)
+
+Dipakai 21 Nov 2026 setelah deploy Altare gagal di semua region. Netlify
+menjalankan repo ini sebagai static site (`public/`) + Functions:
+
+- `netlify.toml`: publish `public`, functions `netlify/functions`, redirect
+  `/api/*` → `/.netlify/functions/api/:splat` (router `api.mjs` meneruskan
+  ke handler `api/*.js` yang sama seperti di Vercel — tidak ada duplikasi
+  logika).
+- Siklus trading: Scheduled Functions `scheduled-scan` (00:00 UTC) dan
+  `scheduled-screen` (01:00 UTC, sama seperti cron Vercel) hanya MEMICU
+  background function `scan-background` (`?job=scan|screen&secret=...`),
+  karena scheduled function dibatasi 30 detik sementara satu siklus bisa
+  lebih lama; background function limitnya 15 menit.
+- Batas paket gratis Netlify (akun baru, sistem kredit): 300 kredit/bulan
+  bersama — sekali deploy produksi ±15 kredit, komputasi function
+  10 kredit/GB-jam. Jangan deploy berulang-ulang tanpa perlu.
+- Fungsi sinkron Netlify limit 60 detik (sama seperti Vercel Hobby) —
+  cukup untuk satu siklus biasa.
+
+### Cara pasang (sekali saja)
+
+1. Netlify → **Add new site → Import an existing project** → GitHub →
+   pilih repo `DemonDeployer/franky-bot` → **Deploy**.
+2. Isi Environment Variables di **Site settings → Environment variables**
+   (atau di langkah import): `DRY_RUN=true` dulu, `TELEGRAM_BOT_TOKEN`,
+   `TELEGRAM_CHAT_ID`, `CRON_SECRET` (nilai yang sama seperti di Vercel;
+   bila `CRON_SECRET` tidak ketemu di Vercel, buat string acak baru —
+   yang penting sama antara Netlify dan pemanggil cron).
+3. Pindahkan webhook Telegram: buka
+   `https://<domain-netlify-kamu>/api/telegram?setup=1` sekali saja.
+4. Cek dashboard di domain Netlify (`https://<nama>.netlify.app`).
+
+### Menuju LIVE (uang asli) — urutan yang benar
+
+1. Buat wallet khusus bot di `/wallet.html` (1 Solana + 1 EVM),
+   lalu ISI DANA kecil dulu (±$20–30/chain).
+2. Masukkan `EVM_PRIVATE_KEY` + `SOLANA_PRIVATE_KEY` di Netlify env vars.
+3. Terakhir baru ubah `DRY_RUN=false` dan redeploy. JANGAN balik
+   `DRY_RUN=false` sebelum wallet ada dan terisi — bot hanya akan error.
+4. Setelah LIVE, pantau lewat Telegram `/status` dan `/posisi`;
+   `/stop` menjeda auto-trade kapan saja.
+
+### Setelah pindah ke Netlify
+
+- Matikan cron Vercel supaya tidak dobel (hapus entri `crons` di
+  `vercel.json`) — Vercel tinggal dashboard cadangan. Dua runner aktif =
+  dua state kertas yang berbeda.
+- State posisi di Netlify tersimpan di `/tmp` per function (bisa hilang
+  saat recycle); isi `UPSTASH_REDIS_REST_URL/TOKEN` untuk dedup alert
+  yang tahan redeploy.
