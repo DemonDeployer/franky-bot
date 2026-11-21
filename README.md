@@ -242,3 +242,47 @@ franky-bot/
 ├── vercel.json          # cron 1x sehari (paket Hobby) untuk /api/scan + /api/screen
 └── .env.example
 ```
+
+---
+
+## Jalankan di Altare (hidup 24/7, cron 5 menit gratis)
+
+Vercel Hobby hanya boleh cron 1x sehari — cron `*/5` di `vercel.json` sempat
+membuat SEMUA deployment gagal (21 Nov 2026, diperbaiki jadi 1x sehari).
+Altare Always Free tidak punya batas itu: aplikasi TIDAK tidur, dan cron
+tiap 5 menit gratis. Sejak 21 Nov 2026, Altare adalah rumah utama Franky;
+Vercel tinggal cadangan.
+
+### Cara pasang (sekali saja)
+
+1. Buat akun di https://console.altare.gg (login Google), buka **Apps → New app**.
+2. Pilih **GitHub repository** → **Connect GitHub** → install Altare GitHub App
+   (pilih repo ini saja: `DemonDeployer/franky-bot`, branch `main`).
+3. Nama aplikasi `franky` → alamat `https://franky.go.altare.global`.
+   Runtime Node.js 24; start command dari `Procfile`: `web: node server.js`.
+   Server ini (`server.js`, tanpa dependensi baru) menyajikan `public/` statis
+   + meneruskan `/api/*` ke handler yang sama dengan Vercel.
+4. Isi Environment Variables di console Altare (Deployments → Settings):
+   salin dari `.env.example` — yang wajib: `DRY_RUN=true`, `CRON_SECRET`,
+   `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`. Kunci wallet HANYA bila mau live
+   (lihat peringatan di `.env.example`). Menyimpan variabel = redeploy.
+5. Buat 2 Jobs (console Altare → Jobs), masing-masing tiap 5 menit:
+   - `franky-scan`: `node scripts/scan-local.js` — siklus trading (mode kertas).
+   - `franky-screen`: `node scripts/screen-local.js` — screener, alert PASS saja.
+   Job jalan di dalam aplikasi dengan env yang sama; state posisi tersimpan
+   di `./data/franky-state.json` (di Altare, bukan `/tmp`).
+6. Pindahkan webhook Telegram ke Altare: buka
+   `https://franky.go.altare.global/api/telegram?setup=1` sekali saja.
+   Setelah itu perintah `/start /status /posisi /scan /stop /jalan /cek`
+   dilayani dari Altare.
+7. Health check: `/health` (atur di Deployments → Settings bila perlu).
+
+### Setelah pindah ke Altare
+
+- Matikan cron Vercel supaya tidak dobel: hapus entri `crons` di `vercel.json`
+  (Vercel tinggal dashboard + tombol scan manual). Dua runner aktif = dua
+  state kertas yang berbeda — jangan biarkan keduanya jalan.
+- Deploy gagal di Altare tidak mematikan versi lama (beda dengan Vercel).
+- Catatan: posisi kertas bisa hilang saat redeploy (state file ikut build baru).
+  Untuk dedup alert yang tahan redeploy, isi `UPSTASH_REDIS_REST_URL/TOKEN`
+  (gratis, lihat `.env.example`).
