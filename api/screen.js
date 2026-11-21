@@ -1,6 +1,6 @@
 // Franky Bot — endpoint screener token baru (ALERT-ONLY).
-// Dipanggil Vercel Cron tiap 5 menit (butuh paket Pro; di Hobby hanya cron
-// harian yang jalan — lihat vercel.json + README) atau manual dari
+// Dipanggil Vercel Cron 1x sehari (01:00 UTC; cron 5 menit butuh paket Pro —
+// pakai pinger eksternal bila mau tiap 5 menit) atau manual dari
 // dashboard. Menjalankan runScreen() saja: TIDAK ada trading, TIDAK ada
 // beli/jual, TIDAK mengubah DRY_RUN.
 // Akses: sama seperti /api/scan — lolos bila CRON_SECRET cocok, ATAU session

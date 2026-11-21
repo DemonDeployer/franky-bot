@@ -148,8 +148,8 @@ tidak mengubah `DRY_RUN`. Lolos filter artinya struktur bersih, **bukan**
 rekomendasi beli.
 
 Cara kerja:
-- Endpoint `/api/screen` (cron 5 menit di `vercel.json`, plus jalan di
-  siklus harian `/api/scan`) mengambil pair terbaru dari GeckoTerminal
+- Endpoint `/api/screen` (cron 1x sehari di `vercel.json`, plus bisa
+  dijalankan manual) mengambil pair terbaru dari GeckoTerminal
   tiap chain, lalu mengevaluasi kill-switch: honeypot/rug, pajak beli/jual
   > 10%, ada setter pajak di bytecode (setTax/dll.), 10 holder teratas
   (di luar LP/burn) > 25%, LP tidak dibakar dan tidak dikunci, mintable,
@@ -169,9 +169,7 @@ Cara kerja:
 - Perintah Telegram: `/screen` (status), `/screen on`, `/screen off`.
   Default AKTIF setelah deploy. `/stop` hanya menjeda trading — screener
   tetap jalan sampai `/screen off`.
-- Cron 5 menit butuh paket **Pro** Vercel (sama seperti catatan cron di
-  atas: Hobby hanya boleh cron 1x sehari). Di Hobby, screener tetap jalan
-  sekali sehari lewat cron `/api/scan`, plus bisa dijalankan manual dari
+- Cron 5 menit butuh paket **Pro** Vercel (Hobby hanya boleh cron 1x sehari — cron 5 menit di `vercel.json` sempat membuat SEMUA deployment gagal, diperbaiki 21 Nov 2026). Di Hobby, screener jalan sekali sehari lewat cron `/api/screen` sendiri, plus bisa dijalankan manual dari
   dashboard / perintah `/scan` (yang ini menjalankan siklus trading juga)
   atau `GET /api/screen` (khusus screener).
 - Tes lokal: `npm run screen` — fetch pair asli, jalankan filter, cetak
@@ -241,6 +239,6 @@ franky-bot/
 │   └── scan-local.js    # tes satu siklus dari terminal
 │   └── screen-local.js  # tes screener dari terminal (tanpa kirim Telegram)
 ├── package.json
-├── vercel.json          # cron 1x sehari (paket Hobby) + screener 5 menit (butuh Pro)
+├── vercel.json          # cron 1x sehari (paket Hobby) untuk /api/scan + /api/screen
 └── .env.example
 ```
