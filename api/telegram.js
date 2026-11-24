@@ -16,8 +16,14 @@
 // Trading tetap jalan di server (cron Vercel); Telegram hanya remote-nya.
 import { CONFIG } from '../lib/config.js';
 import { loadState, saveState } from '../lib/store.js';
-import { runCycle } from '../lib/engine.js';
-import { checkCoin, CHAINS } from '../lib/check.js';
+import { waitUntil } from '@vercel/functions';
+// CATATAN (kecepatan): lib/engine.js dan lib/check.js sengaja TIDAK di-import
+// statis — keduanya hanya dipakai /scan dan /cek, dan dimuat lazy di cabang
+// itu. Perintah umum (/start /status /posisi /stop /jalan /screen) jadi hanya
+// memuat config + store saat cold start, jauh lebih cepat dibalas.
+// waitUntil dipakai /scan: jawab HTTP 200 ke Telegram langsung, hasil scan
+// dikirim sebagai pesan susulan — tanpa ini fungsi habis waktu (default
+// 10 dtk di Hobby) sebelum runCycle (20–60 dtk) selesai.
 
 const API = (token) => `https://api.telegram.org/bot${token}`;
 
@@ -164,14 +170,26 @@ export default async function handler(req, res) {
       }
     } else if (cmd === '/scan') {
       await reply(token, chatId, '⏳ Memindai…');
-      const s = await runCycle('telegram');
-      const lines = [`🤖 Scan selesai (${s.dryRun ? 'KERTAS' : 'LIVE'})`];
-      for (const b of s.buys) lines.push(`🟢 Beli ${b.symbol} (${b.chain}) @ ${fmtPrice(b.price)}`);
-      for (const x of s.sells) lines.push(`🔴 Jual ${x.symbol} (${x.reason})`);
-      if (s.skipped.length) lines.push(`⏭️ Dilewati: ${s.skipped.join(', ')}`);
-      if (s.errors.length) lines.push(`⚠️ Error: ${s.errors.slice(0, 3).join(' | ')}`);
-      lines.push(`Dipindai: ${s.scanned} pool · kandidat: ${s.candidates}`);
-      await reply(token, chatId, lines.join('\n'));
+      // Balas HTTP 200 langsung; scan jalan di background dan hasilnya
+      // dikirim sebagai pesan susulan. Ini mencegah Telegram mengulang
+      // update karena menunggu balasan 20–60 dtk.
+      waitUntil(
+        (async () => {
+          try {
+            const { runCycle } = await import('../lib/engine.js');
+            const s = await runCycle('telegram');
+            const lines = [`🤖 Scan selesai (${s.dryRun ? 'KERTAS' : 'LIVE'})`];
+            for (const b of s.buys) lines.push(`🟢 Beli ${b.symbol} (${b.chain}) @ ${fmtPrice(b.price)}`);
+            for (const x of s.sells) lines.push(`🔴 Jual ${x.symbol} (${x.reason})`);
+            if (s.skipped.length) lines.push(`⏭️ Dilewati: ${s.skipped.join(', ')}`);
+            if (s.errors.length) lines.push(`⚠️ Error: ${s.errors.slice(0, 3).join(' | ')}`);
+            lines.push(`Dipindai: ${s.scanned} pool · kandidat: ${s.candidates}`);
+            await reply(token, chatId, lines.join('\n'));
+          } catch (e) {
+            await reply(token, chatId, `Scan gagal: ${e.message}`);
+          }
+        })(),
+      );
     } else if (cmd === '/stop') {
       const state = await loadState();
       state.paused = true;
@@ -199,6 +217,7 @@ export default async function handler(req, res) {
         await reply(token, chatId, await screenText());
       }
     } else if (cmd === '/cek') {
+      const { checkCoin, CHAINS } = await import('../lib/check.js');
       const address = args[0] || '';
       const chain = String(args[1] || 'bsc').toLowerCase();
       if (!address) {

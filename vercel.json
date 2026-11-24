@@ -1,1 +1,1 @@
-{"crons":[{"path":"/api/scan?source=cron","schedule":"0 0 * * *"},{"path":"/api/screen?source=cron","schedule":"0 1 * * *"}],"functions":{"api/scan.js":{"maxDuration":60},"api/screen.js":{"maxDuration":60}}}
+{"crons":[{"path":"/api/scan?source=cron","schedule":"0 0 * * *"},{"path":"/api/screen?source=cron","schedule":"0 1 * * *"}],"functions":{"api/scan.js":{"maxDuration":60},"api/screen.js":{"maxDuration":60},"api/telegram.js":{"maxDuration":60}}}
