@@ -6,6 +6,7 @@
 // muncul di beberapa pool) digabung ke entri berlikuiditas terbesar.
 import { latestPools, trendingPools } from '../lib/geckoterminal.js';
 import { CHAINS } from '../lib/check.js';
+import { applyCors } from '../lib/cors.js';
 
 function isDead(p) {
   const price = Number(p.priceUsd || 0);
@@ -18,6 +19,7 @@ function isDead(p) {
 }
 
 export default async function handler(req, res) {
+  if (applyCors(req, res)) return;
   const chain = String(req.query.chain || 'solana').toLowerCase();
   const kind = String(req.query.kind || 'trending').toLowerCase();
   const page = Math.min(5, Math.max(1, parseInt(String(req.query.page || '1'), 10) || 1));

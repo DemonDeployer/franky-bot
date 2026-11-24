@@ -6,8 +6,10 @@
 import { CONFIG } from '../lib/config.js';
 import { runCycle } from '../lib/engine.js';
 import { sessionFromReq, authEnabled } from '../lib/auth.js';
+import { applyCors } from '../lib/cors.js';
 
 export default async function handler(req, res) {
+  if (applyCors(req, res)) return;
   const given =
     req.query.secret || (req.headers.authorization || '').replace('Bearer ', '');
   const cronOk = Boolean(CONFIG.cronSecret) && given === CONFIG.cronSecret;

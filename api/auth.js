@@ -3,8 +3,10 @@
 // Verifikasi lewat tokeninfo Google (gratis, tanpa key).
 
 import { makeSession } from '../lib/auth.js';
+import { applyCors } from '../lib/cors.js';
 
 export default async function handler(req, res) {
+  if (applyCors(req, res)) return;
   if (req.method !== 'POST') {
     return res.status(405).json({ ok: false, error: 'method-not-allowed' });
   }

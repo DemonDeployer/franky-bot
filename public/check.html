@@ -207,6 +207,8 @@
 
 <script>
 const $ = id => document.getElementById(id);
+// Mirror statis DeployHQ: semua panggilan API ke Vercel (backend tetap di sana).
+const API_BASE = "https://franky-bot.vercel.app";
 const CHAIN_LABEL = { solana: 'Solana', bsc: 'BNB Chain', base: 'Base', elysium: 'Elysium', robinhood: 'Robinhood', hyperliquid: 'HyperEVM', ethereum: 'Ethereum' };
 let chain = 'bsc';
 let kind = 'trending';
@@ -259,7 +261,7 @@ async function checkNow(addr) {
   const btn = $('checkBtn'); btn.disabled = true; btn.textContent = 'Mengecek…';
   $('checkErr').textContent = '';
   try {
-    const res = await fetch('/api/check?chain=' + encodeURIComponent(chain) + '&address=' + encodeURIComponent(a));
+    const res = await fetch(API_BASE + '/api/check?chain=' + encodeURIComponent(chain) + '&address=' + encodeURIComponent(a));
     const d = await res.json();
     if (!d.ok) throw new Error(d.error || 'Gagal mengecek');
     lastCheck = d;
@@ -481,7 +483,7 @@ async function loadList() {
   const box = $('coinList');
   box.innerHTML = '<p class="muted">Memuat…</p>';
   try {
-    const res = await fetch('/api/trending?chain=' + encodeURIComponent(chain) + '&kind=' + encodeURIComponent(kind) + '&page=' + listPage);
+    const res = await fetch(API_BASE + '/api/trending?chain=' + encodeURIComponent(chain) + '&kind=' + encodeURIComponent(kind) + '&page=' + listPage);
     const d = await res.json();
     if (!d.ok) throw new Error(d.error || 'Gagal memuat daftar');
     // Simpan harga lama sebagai acuan kolom 1m sebelum diganti data baru.
@@ -501,7 +503,7 @@ async function loadMore() {
   listPage += 1;
   const btn = $('loadMoreBtn'); btn.disabled = true; btn.textContent = 'Memuat…';
   try {
-    const res = await fetch('/api/trending?chain=' + encodeURIComponent(chain) + '&kind=' + encodeURIComponent(kind) + '&page=' + listPage);
+    const res = await fetch(API_BASE + '/api/trending?chain=' + encodeURIComponent(chain) + '&kind=' + encodeURIComponent(kind) + '&page=' + listPage);
     const d = await res.json();
     if (!d.ok) throw new Error(d.error || 'Gagal memuat daftar');
     const seen = new Set(listPools.map(p => String(p.address).toLowerCase()));

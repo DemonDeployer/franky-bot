@@ -4,8 +4,10 @@
 import { loadState } from '../lib/store.js';
 import { CONFIG, CHAINS } from '../lib/config.js';
 import { requireAuth } from '../lib/auth.js';
+import { applyCors } from '../lib/cors.js';
 
 export default async function handler(req, res) {
+  if (applyCors(req, res)) return;
   if (!requireAuth(req)) {
     return res.status(401).json({ ok: false, error: 'unauthorized', authRequired: true });
   }

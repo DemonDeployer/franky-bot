@@ -4,8 +4,10 @@
 // membungkusnya jadi HTTP. Terbuka seperti "first check needs no account":
 // tidak ada wallet, kunci, atau uang yang terlibat — hanya membaca data publik.
 import { checkCoin } from '../lib/check.js';
+import { applyCors } from '../lib/cors.js';
 
 export default async function handler(req, res) {
+  if (applyCors(req, res)) return;
   const body = req.body && typeof req.body === 'object' ? req.body : {};
   const chain = String(req.query.chain || body.chain || 'bsc').toLowerCase();
   const address = String(req.query.address || body.address || '').trim();
