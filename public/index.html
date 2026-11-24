@@ -83,6 +83,38 @@
   <p id="googleStatus" class="muted"></p>
 </div>
 
+<!-- Akun paper trading: daftar terbuka ala TradePaper (username + password saja) -->
+<div class="card" id="accountCard">
+  <h3>Akun Paper Trading</h3>
+  <p class="muted">Daftar gratis — username + password saja, tanpa email, wallet, atau kartu. Uang simulasi saja, tiap akun punya portofolio sendiri.</p>
+  <div id="accountLoggedOut">
+    <div class="row">
+      <input id="accUser" type="text" placeholder="Username (3–20 karakter)" autocomplete="username" style="min-width:200px" />
+      <input id="accPass" type="password" placeholder="Password (min 8 karakter)" autocomplete="current-password" style="min-width:200px" />
+    </div>
+    <p class="muted" style="margin:12px 0 6px">Saldo awal simulasi (hanya saat daftar):</p>
+    <div class="row" id="balancePicker">
+      <button class="secondary" data-bal="1000" onclick="pickBalance(1000, this)">$1.000</button>
+      <button class="secondary" data-bal="5000" onclick="pickBalance(5000, this)">$5.000</button>
+      <button data-bal="10000" onclick="pickBalance(10000, this)">$10.000</button>
+      <button class="secondary" data-bal="100000" onclick="pickBalance(100000, this)">$100.000</button>
+    </div>
+    <div class="row" style="margin-top:12px">
+      <button id="signupBtn" onclick="signup()">Daftar</button>
+      <button class="secondary" onclick="loginUser()">Login</button>
+    </div>
+    <p id="accountStatus" class="muted"></p>
+  </div>
+  <div id="accountLoggedIn" style="display:none">
+    <p>Login sebagai <b id="accountName"></b> · Saldo kertas: <b id="accountCash"></b></p>
+    <div class="row">
+      <button class="secondary" onclick="logout()">Logout</button>
+      <button class="secondary" onclick="resetPortfolio()">Reset portofolio</button>
+    </div>
+    <p id="accountStatus2" class="muted"></p>
+  </div>
+</div>
+
 <div id="app" style="display:none">
   <div class="card">
     <div class="row">
@@ -90,10 +122,11 @@
       <span id="chains"></span>
       <span id="daily"></span>
       <span id="loginInfo" class="muted"></span>
+      <span id="cashInfo" class="muted"></span>
       <button class="secondary" id="logoutBtn" onclick="logout()" style="display:none">Logout</button>
     </div>
     <p id="limits" style="color:#9aa3b2;font-size:14px"></p>
-    <div class="row">
+    <div class="row" id="scanRow">
       <input id="secret" type="password" placeholder="CRON_SECRET (bila diisi)" style="min-width:260px" />
       <button id="scanBtn" onclick="scanNow()">Scan sekarang</button>
       <button class="secondary" onclick="refresh()">Refresh</button>
@@ -126,10 +159,27 @@
     </div>
   </div>
 
+  <div class="card" id="tradeCard" style="display:none">
+    <h3>Beli koin (kertas)</h3>
+    <p class="muted">Beli dari saldo kertasmu. Token yang terdeteksi berbahaya (honeypot/rug) ditolak otomatis. Maks $5 per beli, maks 5 posisi.</p>
+    <div class="row">
+      <select id="tradeChain" style="background:#0a0a0a;color:#e8e8e8;border:1px solid #333;border-radius:4px;padding:11px 12px">
+        <option value="solana">Solana</option>
+        <option value="bsc">BNB Chain</option>
+        <option value="base">Base</option>
+        <option value="hyperliquid">HyperEVM</option>
+      </select>
+      <input id="tradeAddr" type="text" placeholder="Alamat token" style="min-width:260px;flex:1" />
+      <input id="tradeUsd" type="number" min="0.01" max="5" step="0.01" value="5" style="width:90px" />
+      <button onclick="buyCoin()">Beli</button>
+    </div>
+    <p id="tradeStatus" class="muted"></p>
+  </div>
+
   <div class="card">
     <h3>Posisi terbuka (<span id="posCount">0</span>)</h3>
-    <table><thead><tr><th>Token</th><th>Chain</th><th class="num">Harga beli</th><th class="num">Modal</th><th>Waktu beli</th><th>Tx</th></tr></thead>
-    <tbody id="positions"><tr><td colspan="6" style="color:#9aa3b2">Belum ada posisi.</td></tr></tbody></table>
+    <table><thead><tr><th>Token</th><th>Chain</th><th class="num">Harga beli</th><th class="num">Modal</th><th>Waktu beli</th><th>Tx</th><th>Aksi</th></tr></thead>
+    <tbody id="positions"><tr><td colspan="7" style="color:#9aa3b2">Belum ada posisi.</td></tr></tbody></table>
   </div>
 
   <div class="card">
@@ -151,6 +201,9 @@ const API_BASE = "https://franky-bot.vercel.app";
 const fmtT = (iso) => iso ? new Date(iso).toLocaleString('id-ID') : '-';
 const shortTx = (h) => h ? h.slice(0, 10) + '…' + h.slice(-6) : '-';
 let googleClientId = '';
+let signupEnabled = false;
+let signupBalance = 10000;
+let frankyUser = localStorage.getItem('franky_user') || '';
 
 function authHeaders(extra = {}) {
   const s = localStorage.getItem('franky_session');
@@ -161,10 +214,14 @@ function showApp() {
   $('loginPanel').style.display = 'none';
   $('app').style.display = 'block';
   const email = localStorage.getItem('franky_email');
-  if (email) {
+  if (frankyUser) {
+    $('loginInfo').textContent = 'Login: @' + frankyUser + ' (akun kertas)';
+    $('logoutBtn').style.display = '';
+  } else if (email) {
     $('loginInfo').textContent = 'Login: ' + email;
     $('logoutBtn').style.display = '';
   }
+  renderAccount();
 }
 
 function showLogin(msg) {
@@ -176,7 +233,160 @@ function showLogin(msg) {
 function logout() {
   localStorage.removeItem('franky_session');
   localStorage.removeItem('franky_email');
+  localStorage.removeItem('franky_user');
+  frankyUser = '';
   location.reload();
+}
+
+// --- Akun paper trading (daftar terbuka) ---
+function renderAccount() {
+  const out = $('accountLoggedOut'), inn = $('accountLoggedIn');
+  if (!out || !inn) return;
+  if (frankyUser) {
+    out.style.display = 'none';
+    inn.style.display = 'block';
+    $('accountName').textContent = '@' + frankyUser;
+  } else {
+    out.style.display = 'block';
+    inn.style.display = 'none';
+    if (!signupEnabled) {
+      $('accountStatus').textContent = 'Pendaftaran belum aktif — Upstash Redis belum dikonfigurasi di server.';
+      $('signupBtn').disabled = true;
+    } else {
+      $('accountStatus').textContent = '';
+      $('signupBtn').disabled = false;
+    }
+  }
+}
+
+function pickBalance(v, el) {
+  signupBalance = v;
+  document.querySelectorAll('#balancePicker button').forEach(b => b.classList.add('secondary'));
+  el.classList.remove('secondary');
+}
+
+async function signup() {
+  const u = $('accUser').value.trim();
+  const p = $('accPass').value;
+  const st = $('accountStatus');
+  st.textContent = 'Mendaftar…';
+  try {
+    const r = await fetch(API_BASE + '/api/signup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: u, password: p, startingBalance: signupBalance }),
+    });
+    const d = await r.json();
+    if (d.ok) {
+      localStorage.setItem('franky_session', d.session);
+      localStorage.setItem('franky_user', d.username);
+      frankyUser = d.username;
+      $('accPass').value = '';
+      renderAccount();
+      showApp();
+      refresh();
+    } else {
+      st.textContent = 'Daftar gagal: ' + (d.error || 'tidak diketahui');
+    }
+  } catch (e) {
+    st.textContent = 'Daftar gagal: ' + e.message;
+  }
+}
+
+async function loginUser() {
+  const u = $('accUser').value.trim();
+  const p = $('accPass').value;
+  const st = $('accountStatus');
+  st.textContent = 'Login…';
+  try {
+    const r = await fetch(API_BASE + '/api/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: u, password: p }),
+    });
+    const d = await r.json();
+    if (d.ok) {
+      localStorage.setItem('franky_session', d.session);
+      localStorage.setItem('franky_user', d.username);
+      frankyUser = d.username;
+      $('accPass').value = '';
+      renderAccount();
+      showApp();
+      refresh();
+    } else {
+      st.textContent = 'Login gagal: ' + (d.error || 'tidak diketahui');
+    }
+  } catch (e) {
+    st.textContent = 'Login gagal: ' + e.message;
+  }
+}
+
+async function buyCoin() {
+  const st = $('tradeStatus');
+  const chain = $('tradeChain').value;
+  const address = $('tradeAddr').value.trim();
+  const usd = Number($('tradeUsd').value);
+  st.textContent = 'Membeli…';
+  try {
+    const r = await fetch(API_BASE + '/api/trade', {
+      method: 'POST',
+      headers: authHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ action: 'buy', chain, address, usd }),
+    });
+    const d = await r.json();
+    if (d.ok) {
+      st.textContent = 'Beli ' + d.position.symbol + ' $' + d.position.entryUsd + ' @ $' + d.position.entryPriceUsd + (d.verdict === 'WASPADA' ? ' (WASPADA — cek flag keamanannya)' : '');
+      $('tradeAddr').value = '';
+      refresh();
+    } else {
+      st.textContent = 'Beli gagal: ' + (d.error || 'tidak diketahui');
+    }
+  } catch (e) {
+    st.textContent = 'Beli gagal: ' + e.message;
+  }
+}
+
+async function sellPosition(id) {
+  const st = $('tradeStatus');
+  st.textContent = 'Menjual…';
+  try {
+    const r = await fetch(API_BASE + '/api/trade', {
+      method: 'POST',
+      headers: authHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ action: 'sell', positionId: id }),
+    });
+    const d = await r.json();
+    if (d.ok) {
+      st.textContent = 'Jual ' + d.trade.symbol + ': PnL ' + d.trade.pnlPct + '% ($' + d.trade.pnlUsd + ')';
+      refresh();
+    } else {
+      st.textContent = 'Jual gagal: ' + (d.error || 'tidak diketahui');
+    }
+  } catch (e) {
+    st.textContent = 'Jual gagal: ' + e.message;
+  }
+}
+
+async function resetPortfolio() {
+  if (!confirm('Reset portofolio ke saldo awal? Semua posisi dan riwayatmu akan dihapus.')) return;
+  const st = $('accountStatus2');
+  st.textContent = 'Mereset…';
+  try {
+    const r = await fetch(API_BASE + '/api/portfolio', {
+      method: 'POST',
+      headers: authHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ action: 'reset' }),
+    });
+    const d = await r.json();
+    if (d.ok) {
+      st.textContent = 'Portofolio direset ke $' + d.startingBalance + '.';
+      refresh();
+    } else {
+      st.textContent = 'Reset gagal: ' + (d.error || 'tidak diketahui');
+    }
+  } catch (e) {
+    st.textContent = 'Reset gagal: ' + e.message;
+  }
 }
 
 async function loadConfig() {
@@ -187,6 +397,8 @@ async function loadConfig() {
     else if (!googleClientId) {
       $('googleStatus2').textContent = 'Login Google belum dikonfigurasi (isi GOOGLE_CLIENT_ID di Environment Variables).';
     }
+    signupEnabled = !!cfg.signupEnabled;
+    renderAccount();
   } catch (e) {
     $('googleStatus2').textContent = 'Gagal memuat konfigurasi.';
   }
@@ -229,6 +441,15 @@ async function refresh() {
     const d = await res.json();
     if (!d.ok) return;
     showApp();
+    if (d.cash !== undefined) {
+      $('cashInfo').textContent = 'Saldo kertas: $' + Number(d.cash).toFixed(2);
+      const ac = $('accountCash');
+      if (ac) ac.textContent = '$' + Number(d.cash).toFixed(2);
+    } else {
+      $('cashInfo').textContent = '';
+    }
+    $('tradeCard').style.display = d.userPortfolio ? 'block' : 'none';
+    $('scanRow').style.display = d.userPortfolio ? 'none' : 'flex';
     const mode = $('mode');
     mode.textContent = d.mode === 'PAPER' ? 'MODE KERTAS (tidak ada uang asli)' : 'LIVE (uang asli!)';
     mode.className = 'badge ' + (d.mode === 'PAPER' ? 'paper' : 'live');
@@ -237,7 +458,7 @@ async function refresh() {
     const l = d.limits;
     $('limits').textContent = `Beli maks $${l.maxBuyUsd} / posisi · maks ${l.maxPositions} posisi · TP +${l.takeProfitPct}% · SL -${l.stopLossPct}% · max hold ${l.maxHoldHours}j · batas rugi harian $${l.dailyLossLimitUsd}`;
     $('posCount').textContent = d.positions.length;
-    $('positions').innerHTML = d.positions.length ? d.positions.map(p => `<tr><td><b>${p.symbol}</b>${p.holders ? '<br><span class="muted" style="font-size:12px">' + esc(holdersLine(p.holders)) + '</span>' : ''}</td><td>${p.chain}</td><td class="num">$${p.entryPriceUsd}</td><td class="num">$${p.entryUsd}${p.paper ? ' (kertas)' : ''}</td><td>${fmtT(p.boughtAt)}</td><td>${shortTx(p.txHash)}</td></tr>`).join('') : '<tr><td colspan="6" style="color:#9aa3b2">Belum ada posisi.</td></tr>';
+    $('positions').innerHTML = d.positions.length ? d.positions.map(p => `<tr><td><b>${p.symbol}</b>${p.holders ? '<br><span class="muted" style="font-size:12px">' + esc(holdersLine(p.holders)) + '</span>' : ''}</td><td>${p.chain}</td><td class="num">$${p.entryPriceUsd}</td><td class="num">$${p.entryUsd}${p.paper ? ' (kertas)' : ''}</td><td>${fmtT(p.boughtAt)}</td><td>${shortTx(p.txHash)}</td><td>${d.userPortfolio ? `<button class="secondary" style="padding:6px 12px" onclick="sellPosition('${esc(p.id)}')">Jual</button>` : '-'}</td></tr>`).join('') : '<tr><td colspan="7" style="color:#9aa3b2">Belum ada posisi.</td></tr>';
     $('trades').innerHTML = d.trades.length ? d.trades.map(t => `<tr><td><b>${t.symbol}</b></td><td>${t.reason || '-'}</td><td class="num ${t.pnlPct >= 0 ? 'pos' : 'neg'}">${t.pnlPct}%</td><td class="num ${t.pnlUsd >= 0 ? 'pos' : 'neg'}">$${t.pnlUsd}</td><td>${fmtT(t.closedAt)}</td></tr>`).join('') : '<tr><td colspan="5" style="color:#9aa3b2">Belum ada trade.</td></tr>';
     $('logs').innerHTML = d.logs.length ? d.logs.map(x => `<li><span>${fmtT(x.t)}</span>${x.msg}</li>`).join('') : '<li>Belum ada log.</li>';
   } catch (e) {
@@ -376,6 +597,7 @@ async function connectPhantom() {
 }
 
 window.addEventListener('load', () => {
+  renderAccount();
   loadConfig();
   refresh();
   setInterval(refresh, 30000);

@@ -34,10 +34,14 @@ const API = new Set([
   'auth',
   'check',
   'config',
+  'login',
+  'portfolio',
   'positions',
   'scan',
   'screen',
+  'signup',
   'telegram',
+  'trade',
   'trending',
 ]);
 
